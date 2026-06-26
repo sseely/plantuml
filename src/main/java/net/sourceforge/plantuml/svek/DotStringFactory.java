@@ -69,6 +69,10 @@ import net.sourceforge.plantuml.vizjs.GraphvizJsRuntimeException;
 
 public final class DotStringFactory implements Moveable {
 
+	// [plantuml-ts oracle seam] dev-only: sequences the DOT dumps emitted when
+	// the -DPLANTUML_DUMP_DOT system property is set. Inert otherwise.
+	private static final java.util.concurrent.atomic.AtomicInteger DUMP_DOT_COUNTER = new java.util.concurrent.atomic.AtomicInteger();
+
 	private final DiagramType diagramType;
 	private final ISkinParam skinParam;
 	private final Bibliotekon bibliotekon;
@@ -282,6 +286,20 @@ public final class DotStringFactory implements Moveable {
 	public String getSvg(StringBounder stringBounder, DotMode dotMode, BaseFile basefile, String[] dotOptions)
 			throws IOException {
 		String dotString = createDotString(stringBounder, dotMode, dotOptions);
+
+		// [plantuml-ts oracle seam] dev-only: when -DPLANTUML_DUMP_DOT=<dir> is set,
+		// tee the exact DOT handed to graphviz to <dir>/svek-N.dot. Inert otherwise,
+		// so the patched jar is byte-identical to stock when the property is unset.
+		final String dumpDotDir = System.getProperty("PLANTUML_DUMP_DOT");
+		if (dumpDotDir != null) {
+			try {
+				java.nio.file.Files.write(java.nio.file.Paths.get(dumpDotDir,
+						"svek-" + DUMP_DOT_COUNTER.incrementAndGet() + ".dot"),
+						dotString.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			} catch (final java.io.IOException dumpEx) {
+				System.err.println("[PLANTUML_DUMP_DOT] " + dumpEx.getMessage());
+			}
+		}
 
 		if (TeaVM.isTeaVM()) {
 			// Surface layout-engine failures (e.g. viz-global.js not loaded) as an
