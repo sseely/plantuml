@@ -176,6 +176,17 @@ public enum FileFormat {
 
 	public StringBounder getDefaultStringBounder(TikzFontDistortion tikzFontDistortion, SvgCharSizeHack charSizeHack,
 			Pragma pragma) {
+		// [plantuml-ts oracle seam] dev-only: when -DPLANTUML_DETERMINISTIC_TEXT is
+		// set, force PlantUML's deterministic width-table bounder for SVG renders so
+		// the dumped DOT node sizes match plantuml-ts's WidthTableMeasurer (same
+		// UnicodeFontWidthSansSerif table). Inert otherwise; the jar is
+		// byte-identical to stock when the property is unset. See
+		// planning/adr/ADR-001-text-measurement.md in plantuml-ts.
+		if (System.getProperty("PLANTUML_DETERMINISTIC_TEXT") != null
+				&& (this == SVG || this == SVG_DETERMINISTIC))
+			return new StringBounderFromWidthTable(FileFormat.SVG_DETERMINISTIC);
+
+
 		// ::comment when JAVA8
 		if (TeaVM.isTeaVM()) {
 			if (this == SVG_DETERMINISTIC)
