@@ -184,7 +184,17 @@ public enum FileFormat {
 		// planning/adr/ADR-001-text-measurement.md in plantuml-ts.
 		if (System.getProperty("PLANTUML_DETERMINISTIC_TEXT") != null
 				&& (this == SVG || this == SVG_DETERMINISTIC))
-			return new StringBounderFromWidthTable(FileFormat.SVG_DETERMINISTIC);
+			// The width table replaces only the METRICS. The bounder must still
+			// answer matchesProperty("SVG") as StringBounderSvg does
+			// (StringBounderSvg.java:67-69), or EmbeddedDiagram#calculateDimensionSlow
+			// takes the PNG arm, throws, and reserves 42x42 for every {{ }} diagram
+			// (EmbeddedDiagram.java:129-152) where the stock jar sizes the real SVG.
+			return new StringBounderFromWidthTable(FileFormat.SVG_DETERMINISTIC) {
+				@Override
+				public boolean matchesProperty(String propertyName) {
+					return "SVG".equalsIgnoreCase(propertyName);
+				}
+			};
 
 
 		// ::comment when JAVA8
