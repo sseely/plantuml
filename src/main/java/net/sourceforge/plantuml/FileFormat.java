@@ -194,6 +194,32 @@ public enum FileFormat {
 				public boolean matchesProperty(String propertyName) {
 					return "SVG".equalsIgnoreCase(propertyName);
 				}
+
+				// [plantuml-ts oracle seam #4] The table gives U+0020 width 0
+				// (UnicodeFontWidthSansSerif block 0, index 0x20), so a lone space
+				// measures 0-wide and crashes SlotFinder (Slot.java:44-45). The
+				// table's own entries for the identical advance are U+0021 '!' = 44
+				// and U+00A0 NO-BREAK SPACE = 44 (tenths of a 16pt em); Helvetica
+				// (Adobe Core14 AFM: C 32 ; WX 278 ; N space = C 33 ; WX 278 ; N
+				// exclam) and Arial (569/2048 for space, '!', no-break space) agree.
+				// Measure each U+0020 as U+0021: the same table entry (44), summed
+				// in the same loop and scaled by the same size/REFERENCE_SIZE factor
+				// as every other glyph -- exactly a table with 44 at index 0x20.
+				// (Adding spaces * 4.4 * size/16 after the scaled sum produced
+				// widths no table arithmetic yields, and activity Worm.mergeMe then
+				// failed Direction.fromVector's exact equality, Direction.java:128.)
+				// The width is then rounded to float, as the stock SVG bounder's is:
+				// FileFormat.getJavaDimension reads FontMetrics.getStringBounds, a
+				// Rectangle2D.Float. A double-precision table width reaches the
+				// same activity coordinate by two routes with different rounding
+				// (126.75000000000001 vs 126.75), which Snake.same accepts
+				// (Snake.java:299-300) and Direction.fromVector rejects.
+				// Stock without the property is untouched.
+				@Override
+				public XDimension2D calculateDimension(UFont font, String text) {
+					final XDimension2D dim = super.calculateDimension(font, text.replace(' ', '!'));
+					return new XDimension2D((float) dim.getWidth(), dim.getHeight());
+				}
 			};
 
 
